@@ -12,6 +12,12 @@ from torch.utils.data import DataLoader
 matplotlib.use("Agg")
 
 
+def log(log, item):
+    print("====")
+    print(log)
+    print(item.shape)
+
+
 def plotter(images, name):
 
     # Create a subplot for visualizing all generated images
@@ -41,9 +47,9 @@ mnist_trainset = torchvision.datasets.MNIST(
 )
 
 # Assuming z_dim is the dimensionality of your latent space
-z_dim = 2
+z_dim = 10
 input_dim = 784
-sigma = 10
+sigma = 1
 
 X = mnist_trainset.data
 
@@ -71,26 +77,35 @@ Um = eigenvectors[:, :z_dim]
 Lm = np.diag(eigenvalues[:z_dim])
 Wml = Um @ np.sqrt(Lm - (sigma**2) * np.identity(z_dim)) @ R
 M = Wml.T @ Wml + (sigma**2) * np.identity(z_dim)
+C = (sigma**2) * np.linalg.inv(M)
+C = np.zeros_like(C)
 
-print(M)
+# log("R", R)
+# log("Um", Um)
+# log("Lm", Lm)
+# log("Wml", Wml)
+# log("M", M)
+# log("C", C)
+
+latent = []
+for t in X[:15]:
+    mean = np.linalg.inv(M) @ Wml.T @ ((t - X_mean).T).flatten()
+    latent.append(np.random.multivariate_normal(mean=mean, cov=C, size=1))
+    # log("t", t)
+
+
+latent = np.array(latent)
+
+# log("latent", latent)
 
 original = X[:15]
 
-
-z = np.random.normal(0, 1, (15, z_dim))
-print(z.shape)
-print("================")
-
-print(z.shape, Wml.shape, X_mean.shape)
-
-original = z @ Wml.T + X_mean
+# log("original", original)
 
 plotter(original, "original")
 
-# original = X[:15]
+reconstructed = latent @ Wml.T + X_mean
 
-# plotter(original, "original")
+# log("reconstructed", reconstructed)
 
-# reconstructed = ((original - X_mean) @ V) @ V.T + X_mean
-
-# plotter(reconstructed, "reconstructed")
+plotter(reconstructed, "reconstructed")
