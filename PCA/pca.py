@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
 import torch
+import json
 
 matplotlib.use("Agg")
 
@@ -74,9 +75,18 @@ original = X[indexes][:6]
 
 plotter(original, f"original")
 
+logs = []
+
 for z_dim in tqdm(z_dims, desc="Dim"):
     V = eigenvectors[:, :z_dim]
 
     reconstructed = ((original - X_mean) @ V) @ V.T + X_mean
 
+    MSE = (reconstructed.reshape(6, 784) - original) ** 2
+    MSE = np.mean(MSE)
+
+    logs.append((z_dim, MSE))
+
     plotter(reconstructed, f"reconstructed_{z_dim}")
+
+json.dump(logs, open("logs.json", "w"))
