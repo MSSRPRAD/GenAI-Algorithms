@@ -8,6 +8,7 @@ import torchvision
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
+import torch
 
 matplotlib.use("Agg")
 
@@ -21,7 +22,7 @@ def log(log, item):
 def plotter(images, name):
 
     # Create a subplot for visualizing all generated images
-    fig, axs = plt.subplots(5, 3, figsize=(10, 8))
+    fig, axs = plt.subplots(2, 3, figsize=(10, 8))
     fig.tight_layout(pad=0.1)
 
     i = 0
@@ -47,7 +48,7 @@ mnist_trainset = torchvision.datasets.MNIST(
 )
 
 # Assuming z_dim is the dimensionality of your latent space
-z_dim = 10
+z_dims = [2, 4, 8, 16, 32, 64]
 input_dim = 784
 sigma = 1
 
@@ -72,40 +73,39 @@ sorted_indices = np.argsort(eigenvalues)[::-1]
 eigenvalues = eigenvalues[sorted_indices]
 eigenvectors = eigenvectors[:, sorted_indices]
 
-R = np.identity(z_dim)
-Um = eigenvectors[:, :z_dim]
-Lm = np.diag(eigenvalues[:z_dim])
-Wml = Um @ np.sqrt(Lm - (sigma**2) * np.identity(z_dim)) @ R
-M = Wml.T @ Wml + (sigma**2) * np.identity(z_dim)
-C = (sigma**2) * np.linalg.inv(M)
-C = np.zeros_like(C)
+indexes = torch.randperm(X.shape[0])
 
-# log("R", R)
-# log("Um", Um)
-# log("Lm", Lm)
-# log("Wml", Wml)
-# log("M", M)
-# log("C", C)
+original = X[indexes][:6]
 
-latent = []
-for t in X[:15]:
-    mean = np.linalg.inv(M) @ Wml.T @ ((t - X_mean).T).flatten()
-    latent.append(np.random.multivariate_normal(mean=mean, cov=C, size=1))
-    # log("t", t)
+plotter(original, f"original")
 
+for z_dim in tqdm(z_dims, desc="Dim"):
 
-latent = np.array(latent)
+    R = np.identity(z_dim)
+    Um = eigenvectors[:, :z_dim]
+    Lm = np.diag(eigenvalues[:z_dim])
+    Wml = Um @ np.sqrt(Lm - (sigma**2) * np.identity(z_dim)) @ R
+    M = Wml.T @ Wml + (sigma**2) * np.identity(z_dim)
+    C = (sigma**2) * np.linalg.inv(M)
+    C = np.zeros_like(C)
 
-# log("latent", latent)
+    # log("R", R)
+    # log("Um", Um)
+    # log("Lm", Lm)
+    # log("Wml", Wml)
+    # log("M", M)
+    # log("C", C)
 
-original = X[:15]
+    latent = []
+    for t in original:
+        mean = np.linalg.inv(M) @ Wml.T @ ((t - X_mean).T).flatten()
+        latent.append(np.random.multivariate_normal(mean=mean, cov=C, size=1))
+        # log("t", t)
 
-# log("original", original)
+    latent = np.array(latent)
 
-plotter(original, "original")
+    reconstructed = latent @ Wml.T + X_mean
 
-reconstructed = latent @ Wml.T + X_mean
+    # log("reconstructed", reconstructed)
 
-# log("reconstructed", reconstructed)
-
-plotter(reconstructed, "reconstructed")
+    plotter(reconstructed, f"reconstructed_{z_dim}")
