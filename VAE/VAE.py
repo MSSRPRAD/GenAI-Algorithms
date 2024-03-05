@@ -22,13 +22,20 @@ class VAE(nn.Module):
         self.losses = []
 
     def calculate_loss(self, actual_x, reconstructed_x, mean, var):
+        
         reconstruction_loss = F.binary_cross_entropy(reconstructed_x.T, actual_x, reduction='sum')
         
-        kl_divergence = - 0.5 * torch.mean(1 + var - mean.pow(2) - var.exp())
+        kl_divergence = -1 * 0.5 * torch.sum(1 + var - mean.pow(2) - var.exp())
         
         return reconstruction_loss + kl_divergence
+    
+    def forward(self, x):
+        mean, log_var = self.encoder.forward(x)
+        sampled_z = torch.randn_like(mean) * log_var + mean
+        reconstructed_x = self.decoder.forward(sampled_z)
+        return reconstructed_x, mean, log_var
 
-    def train(self, data_loader, epochs, batch_size):
+    def train(self, data_loader, epochs, batch_size, latent_dim):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(device)
 
@@ -38,17 +45,12 @@ class VAE(nn.Module):
             idx = 0
             for batch_idx, (x, _) in tqdm(enumerate(data_loader), desc="Epoch {}".format(epoch), unit="batch", leave=False):
                 
-                actual_x = x.view(x.size(0), -1) / 255
+                actual_x = x.view(x.size(0), -1)
                 actual_x = actual_x.to(torch.float32).to(device)
 
                 self.optimizer.zero_grad()
-                mean, var = self.encoder.forward(actual_x)
 
-                var = torch.exp(0.5 * var)
-
-                sampled_z = torch.randn_like(mean) * var + mean
-
-                reconstructed_x = self.decoder.forward(sampled_z)
+                reconstructed_x, mean, var = self.forward(actual_x)
 
                 loss = self.calculate_loss(actual_x.T, reconstructed_x, mean, var)
                 loss.backward()
@@ -60,15 +62,6 @@ class VAE(nn.Module):
                     print(loss.item())
                     print("-----------------")
 
-                # print("\n=====================\n")
-                # print("Batch : ")
-                # print(idx)
-                # print(x.shape)
-                # print(actual_x.shape)
-                # print(sampled_z.shape)
-                # print(reconstructed_x.shape)
-                # print("\n=====================\n")
-
 
                 idx += 1
                 self.optimizer.step()
@@ -77,7 +70,7 @@ class VAE(nn.Module):
             print("====> Epoch: {} Loss: {:.4f}".format(epoch, total_loss))
             if total_loss < best_loss:
                 total_loss = best_loss
-                torch.save(self.state_dict(), 'best_vae_mnist_weights.pth')
+                torch.save(self.state_dict(), f"vae_mnist_weights_{latent_dim}.pth")
         return self.losses
 
 
@@ -89,7 +82,7 @@ class Encoder(nn.Module):
         self.fc_mean = nn.Linear(hidden_dim, latent_dim)
         self.fc_var = nn.Linear(hidden_dim, latent_dim)
         self.latent_dim = latent_dim
-        self.LeakyReLU = nn.ReLU()
+        self.LeakyReLU = nn.LeakyReLU()
         # self.LeakyReLU = nn.LeakyReLU(0.2)
 
     def forward(self, x):
@@ -106,7 +99,7 @@ class Decoder(nn.Module):
         self.fc1 = nn.Linear(latent_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.fc3 = nn.Linear(hidden_dim, output_dim)
-        self.LeakyReLU = nn.ReLU()
+        self.LeakyReLU = nn.LeakyReLU()
         # self.LeakyReLU = nn.LeakyReLU(0.2)
 
     def forward(self, z):
