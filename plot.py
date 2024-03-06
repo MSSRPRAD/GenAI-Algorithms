@@ -1,24 +1,37 @@
 import matplotlib.pyplot as plt
 import json
 
+plt.style.use("ggplot")
 
-def plot(logs, name):
-    X = []
-    Y = []
+colors = ["red", "green", "blue"]
 
-    for log in logs:
-        X.append(log[0])
-        Y.append(log[1])
 
-    plt.plot(X, Y)
-    plt.savefig(name + ".png")
-    plt.close()
+def plot(logss, names, save=True):
+    idx = 0
+    for logs in logss:
+        name = names[idx]
+        color = colors[idx]
+        X = [log[0] for log in logs]
+        Y = [log[1] for log in logs]
+
+        plt.plot(X, Y, label=name, color=color)
+        plt.title("MSE vs Latent Variable Dimension")
+        plt.legend(names)
+        plt.xlabel("Latent Variable Dimension")
+        plt.ylabel("MSE")
+        if save:
+            plt.savefig(name + ".png")
+            plt.close()
+        idx += 1
 
 
 logsPCA = json.load(open("./PCA/logs.json"))
 logsPPCA = json.load(open("./PPCA/logs.json"))
-# logsVAE = json.load(open("./VAE/logs.json"))
+logsVAE = json.load(open("./VAE/logs.json"))
 
-plot(logsPCA, "PCA")
-plot(logsPPCA, "PPCA")
-# plot(logsVAE, "VAE")
+# Plotting individual plots
+plot([logsPCA], ["PCA"])
+plot([logsPPCA], ["PPCA"])
+plot([logsVAE], ["VAE"])
+plot([logsPCA, logsPPCA, logsVAE], ["PCA", "PPCA", "VAE"], save=False)
+plt.savefig("comparison.png")

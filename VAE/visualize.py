@@ -16,6 +16,7 @@ from VAE import VAE
 from VAE import Encoder
 from VAE import Decoder
 
+
 def plotter(images, name):
 
     # Create a subplot for visualizing all generated images
@@ -38,14 +39,16 @@ def plotter(images, name):
     # Save the figure with all generated images
     plt.savefig(name + ".png")
 
+
 transform = transforms.Compose([transforms.ToTensor()])
 mnist_trainset = torchvision.datasets.MNIST(
     root="./data", train=True, download=True, transform=transform
 )
 
 X = mnist_trainset.data.reshape(60000, 784)
-indexes = torch.randperm(X.shape[0])
-original = X[indexes][:6]
+# indexes = torch.randperm(X.shape[0])
+# original = X[indexes][:6]
+original = X[:6]
 original = torch.tensor(original, dtype=torch.float)
 
 plotter(original.detach().numpy() / 255, "original")
@@ -76,12 +79,14 @@ for latent_dim in tqdm(latent_dims, desc="Dim"):
     }
     vae = VAE(vae_args)
     vae.load_state_dict(
-        torch.load(f"vae_mnist_weights_{latent_dim}.pth", map_location=torch.device("cpu"))
+        torch.load(
+            f"vae_mnist_weights_{latent_dim}.pth", map_location=torch.device("cpu")
+        )
     )
 
     reconstructed, mean, var = vae(original / 255)
     # reconstructed *= 255
-    MSE = (reconstructed.detach().numpy() - original.detach().numpy()) ** 2
+    MSE = (reconstructed.detach().numpy() * 255 - original.detach().numpy()) ** 2
     MSE = np.mean(MSE)
 
     logs.append((latent_dim, MSE.item()))
